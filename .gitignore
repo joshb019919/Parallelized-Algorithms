@@ -1,0 +1,9 @@
+**/.venv
+**/papers
+**/.vscode
+**/__pycache__
+**/data
+/minimax/data
+*.pdf
+*.doc
+*.docx
