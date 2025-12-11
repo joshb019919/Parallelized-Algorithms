@@ -1,0 +1,79 @@
+[
+  {
+    "nodes": 1000,
+    "naive_time": 0.032587,
+    "spark_time": 9.430204,
+    "naive_attractor_size": 65,
+    "spark_attractor_size": 65,
+    "naive_iterations": 65,
+    "spark_iterations": 7,
+    "match": true
+  }
+,
+  {
+    "nodes": 5000,
+    "naive_time": 0.044861,
+    "spark_time": 47.224397,
+    "naive_attractor_size": 3009,
+    "spark_attractor_size": 3009,
+    "naive_iterations": 3009,
+    "spark_iterations": 70,
+    "match": true
+  }
+,
+  {
+    "nodes": 10000,
+    "naive_time": 0.059627,
+    "spark_time": 49.448620,
+    "naive_attractor_size": 5068,
+    "spark_attractor_size": 5068,
+    "naive_iterations": 5068,
+    "spark_iterations": 73,
+    "match": true
+  }
+,
+  {
+    "nodes": 50000,
+    "naive_time": 0.229772,
+    "spark_time": 80.924978,
+    "naive_attractor_size": 26688,
+    "spark_attractor_size": 26688,
+    "naive_iterations": 26688,
+    "spark_iterations": 107,
+    "match": true
+  }
+,
+  {
+    "nodes": 100000,
+    "naive_time": 0.515150,
+    "spark_time": 100.340820,
+    "naive_attractor_size": 51492,
+    "spark_attractor_size": 51492,
+    "naive_iterations": 51492,
+    "spark_iterations": 108,
+    "match": true
+  }
+,
+  {
+    "nodes": 500000,
+    "naive_time": 2.866147,
+    "spark_time": 339.891938,
+    "naive_attractor_size": 245839,
+    "spark_attractor_size": 245839,
+    "naive_iterations": 245839,
+    "spark_iterations": 183,
+    "match": true
+  }
+,
+  {
+    "nodes": 1000000,
+    "naive_time": 6.143114,
+    "spark_time": 520.565451,
+    "naive_attractor_size": 503797,
+    "spark_attractor_size": 503797,
+    "naive_iterations": 503797,
+    "spark_iterations": 164,
+    "match": true
+  }
+
+]

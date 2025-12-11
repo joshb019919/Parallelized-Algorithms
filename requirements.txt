@@ -1,0 +1,5 @@
+Python>=3.8
+PySpark==4.0
+NumPy
+Matplotlib
+# Java runtime (for PySpark)

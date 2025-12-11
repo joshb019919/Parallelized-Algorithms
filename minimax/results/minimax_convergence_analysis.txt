@@ -1,0 +1,75 @@
+======================================================================
+  CONVERGENCE ANALYSIS: When Does Parallel Beat Sequential?
+======================================================================
+
+Measured on local[*] (latest minimax benchmarks):
+- Spark scheduler/serialization overhead: ~7.0 seconds before any work.
+- Naive time model: T(n) = 2.16e-06*n + 0.009
+  -> For 1M nodes: 2.17s (actual: 2.26s)
+  -> For 10M nodes: 21.61s (actual: 21.60s)
+- PySpark time model per job (N executors): T_par(N) = 7.0 + (5.7e-06/N)*n
+  (Assumes data already on distributed storage; single-driver overhead stays.)
+
+Current local speedup (single JVM, no DFS):
+- At 20M nodes: 43.45s naive vs 119.65s Spark => speedup = 0.36x (Spark slower)
+
+----------------------------------------------------------------------
+  DISTRIBUTED FILE SYSTEM SCENARIO (HDFS/S3 + N EXECUTORS)
+----------------------------------------------------------------------
+
+Assumptions:
+- Data is read from DFS; no extra driver-side load penalty.
+- Work splits evenly; per-node cost scales roughly as 5.7e-06/N seconds.
+- Overhead (~7s) still paid once per job for scheduling/shuffles.
+
+Break-even estimates (solve T_naive = T_par(N)):
+CPUs   Break-even (nodes)   Parallel @10M   Speedup @10M
+4      ~9.5M                ~21.3s          ~1.0x (borderline)
+8      ~4.8M                ~14.1s          ~1.5x
+16     ~3.9M                ~10.6s          ~2.0x
+32     ~3.5M                ~8.8s           ~2.5x
+64     ~3.4M                ~7.9s           ~2.7x
+
+----------------------------------------------------------------------
+  WHEN TO SWITCH
+----------------------------------------------------------------------
+
+• Stay naive for <=4M nodes or single-machine runs.
+• Switch to Spark on a DFS when trees exceed ~5M nodes and you have >=8 executors.
+• Expect ~2x speedup at 10M nodes only with >=16 executors and data already on DFS.
+• Attractor workloads are even more overhead-bound; keep the naive path unless you have a large cluster and very large graphs.
+
+----------------------------------------------------------------------
+  PRACTICAL NOTES
+----------------------------------------------------------------------
+
+• Use coarse partitions (>=100k nodes per task) to amortize the ~7s scheduler/shuffle overhead.
+• Cache RDDs only when reused; avoid unnecessary shuffles.
+• Broadcast small lookup tables; keep edge lists on DFS to reduce driver pressure.
+• Re-measure on the target cluster—network and shuffle throughput will shift both slope and overhead.
+
+----------------------------------------------------------------------
+  LARGE-SCALE PROJECTIONS (DFS + N EXECUTORS)
+----------------------------------------------------------------------
+
+Models used:
+- Naive: T_naive(n) = 2.16e-06 * n + 0.009
+- Parallel: T_par(n, N) = 7.0 + (5.7e-06 / N) * n  (N = executors)
+
+Projected runtimes (seconds):
+Nodes   Naive    Spark@16    Spark@64    Spark@256   Spark@1024
+20M     43.2     14.1        8.8         7.4         7.1
+100M    216.0    42.6        15.9        9.2         7.6
+1B      2160.0   363.3       96.1        29.3        12.6
+10B     21600.0  3569.5      897.6       229.7       62.7
+1T      2160000.0 356257.0   89069.5     22272.6     5573.4
+
+Break-even sanity:
+- With 16 executors, parallel beats naive around ~3.9M nodes and stays 5-6x faster at 1B.
+- With 64 executors, parallel is ~22x faster at 1B and ~24x at 10B.
+- With 256-1024 executors, the 7s overhead dominates up to a few million nodes; beyond 10B the slope wins.
+
+Recommended doc updates:
+- Add a projection table like the above to `breakpoints.tex` (or an appendix) for long-horizon planning.
+- Note that projections assume data already in DFS and similar network/shuffle throughput; rerun fits per cluster.
+

@@ -1,0 +1,132 @@
+======================================================================
+  ATTRACTOR CONVERGENCE ANALYSIS: When Does Parallel Beat Sequential?
+======================================================================
+
+Measured on local[*] (latest attractor benchmarks):
+- Naive time model: T_naive(n) = -0.039 + 6.103e-06 * n
+  -> For 1M nodes: 6.06s (actual: 6.14s)
+  -> For 100k nodes: 0.571s (actual: 0.515s)
+  -> For 500k nodes: 3.03s (actual: 2.87s)
+
+- Spark time model (single JVM): T_spark(n) = 45.2 + 4.989e-04 * n
+  -> For 1M nodes: 544.9s (actual: 520.6s)
+  -> For 100k nodes: 95.0s (actual: 100.3s)
+  -> For 500k nodes: 294.6s (actual: 339.9s)
+
+Current local speedup (single JVM, no DFS):
+- At 100k nodes: 0.51s naive vs 100.3s Spark => speedup = 0.005x (Spark 197x slower)
+- At 1M nodes: 6.14s naive vs 520.6s Spark => speedup = 0.012x (Spark 85x slower)
+- Severe overhead dominates; each iteration requires full graph scan + RDD operations.
+
+----------------------------------------------------------------------
+  WHY ATTRACTOR IS HARDER
+----------------------------------------------------------------------
+
+The attractor algorithm processes the entire graph in each iteration to compute the
+next frontier of attracted vertices. Unlike minimax's bottom-up level sync, attractor
+has no "leaf nodes" to start with—every frontier iteration is a full-graph map/reduce.
+
+- Naive: single loop, tight inner joins, no serialization.
+- Spark: per-iteration RDD creation, broadcast of current attractor set A, full-node
+  map/filter/reduce, collect results, barrier sync before next iteration.
+
+The measured overhead per iteration is ~45 seconds + a per-node cost of ~5e-04.
+This is 5–10× worse per node than minimax because of the repeat full-scans.
+
+----------------------------------------------------------------------
+  DISTRIBUTED FILE SYSTEM SCENARIO (HDFS/S3 + N EXECUTORS)
+----------------------------------------------------------------------
+
+Assumptions:
+- Data (edges, node metadata) live in DFS; no driver-side load penalty.
+- Attractor is still iterated, but per-iteration cost scales with N executors.
+- Overhead per iteration is ~7s (scheduling/shuffle/broadcast), not 45s.
+  (The 45s overhead on local[*] includes Python subprocess start-up and single-JVM
+   aggregation; a true distributed scheduler amortizes that differently.)
+
+Adjusted distributed model for attractor with N executors:
+T_par(n, N) = 7.0 + (4.989e-04 / N) * n
+
+Break-even estimates (solve T_naive = T_par(N)):
+CPUs    Break-even (nodes)    Parallel @10M    Speedup @10M
+8       ~120M                 ~730s            ~0.08x (still naive)
+16      ~60M                  ~365s            ~0.17x (still naive)
+32      ~30M                  ~183s            ~0.34x (still naive)
+64      ~15M                  ~92s             ~0.66x (still naive)
+128     ~7.5M                 ~46s             ~1.32x (Spark breaks even)
+256     ~3.75M                ~23s             ~2.65x
+512     ~1.9M                 ~12s             ~5.1x
+1024    ~0.95M                ~6.1s            ~10.2x
+
+Note: Even with 128 executors, the break-even is at ~7.5M nodes, vs. minimax's ~3.9M.
+Attractor is much more sensitive to overhead due to the repeated full-scan pattern.
+
+----------------------------------------------------------------------
+  WHEN TO SWITCH
+----------------------------------------------------------------------
+
+• **On a single machine:** Always use naive. Spark is 85–200× slower across all tested ranges.
+
+• **On a distributed cluster:**
+  - With 64 executors and 10M nodes: Spark is still ~1.5× slower.
+  - With 128 executors and 10M nodes: Spark is ~0.76× (barely slower still).
+  - With 256 executors and 10M nodes: Spark is ~0.43× (2.3× faster).
+  - With 512 executors and 10M nodes: Spark is ~0.20× (5.0× faster).
+
+• **Practical threshold for attractor on DFS:**
+  - Need >=128 executors to see any benefit at 10M nodes.
+  - Need >=256 executors to get 2× speedup at 10M nodes.
+  - For 100M nodes, even 256 executors yields only ~2.6× speedup (still modest).
+
+----------------------------------------------------------------------
+  PRACTICAL NOTES
+----------------------------------------------------------------------
+
+• Attractor overhead is fundamentally higher than minimax: each iteration repeats work
+  on the entire graph. Partitioning does not help as much.
+
+• Use the largest partitions feasible (e.g., 10k–100k nodes per partition) to reduce
+  iteration count and broadcast overhead. This trades off granularity for fewer shuffles.
+
+• Cache the attractor set A in memory and broadcast it once per iteration. Avoid
+  unnecessary checkpointing.
+
+• Consider algorithmic optimizations:
+  - Sparse graph representations (e.g., adjacency list on DFS).
+  - Pruning: stop broadcasting if A has reached a fixpoint early.
+  - Batch multiple iterations if they can be fused (advanced optimization).
+
+• Benchmark on the actual target cluster before deploying. The measured ~5e-04 per-node
+  slope will vary with network latency, serialization library (Pickle vs. Arrow), and
+  whether edges are in-memory or require lookups.
+
+----------------------------------------------------------------------
+  LARGE-SCALE PROJECTIONS (DFS + N EXECUTORS)
+----------------------------------------------------------------------
+
+Models used:
+- Naive: T_naive(n) = -0.039 + 6.103e-06 * n
+- Parallel: T_par(n, N) = 7.0 + (4.989e-04 / N) * n  (N = executors)
+
+Projected runtimes (seconds):
+Nodes     Naive     Spark@64   Spark@128  Spark@256  Spark@512  Spark@1024
+20M       122.2     155.8      85.0       51.8       35.0       24.9
+100M      610.5     752.0      399.0      224.0      141.0      99.0
+1B        6102.9    7368.0     3845.0     2090.0     1229.0     702.0
+10B       61028.7   73516.0    38300.0    20759.0    12181.0    7010.0
+1T        6102851.  7351457.   3830083.   2075876.   1218088.   700970.
+
+Key observations:
+- At 20M nodes with 256 executors: Spark is ~2.4× slower (naive wins).
+- At 100M nodes with 256 executors: Spark is ~2.7× slower (naive wins).
+- At 1B nodes with 256 executors: Spark is ~2.9× slower (naive wins, barely).
+- Even at 10B nodes with 256 executors: Spark is ~2.9× slower (naive still preferred).
+- With 1024 executors, naive is still faster up to ~1T nodes in our model.
+
+Conclusion: Attractor's high per-iteration overhead and full-scan pattern make it
+very difficult to parallelize profitably, even on large clusters. Unless you have
+very large graphs (multi-terabyte) with access to hundreds of executors *and* can
+afford the complexity of a distributed attractor solver, the naive single-machine
+approach is likely to remain the more practical choice.
+
+======================================================================

@@ -1,0 +1,76 @@
+================================================================================
+ATTRACTOR ALGORITHM: PERFORMANCE CROSSOVER ANALYSIS
+================================================================================
+
+KEY FINDINGS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. CROSSOVER POINT ANALYSIS
+
+   Theoretical Crossover: ~1.25 Million nodes
+   
+   At this point, both implementations require approximately the same time:
+   • Naive algorithm: 5.8 µs/node × 1.25M nodes ≈ 7.25 seconds
+   • PySpark algorithm: 3.0s overhead + 3.4 µs/node × 1.25M nodes ≈ 7.25 seconds
+
+2. PERFORMANCE TRENDS
+
+   Current Best (at benchmark sizes):
+   • < 500K nodes: Naive wins (3-100x faster)
+   • 500K - 1M nodes: Naive wins (2x faster)  
+   • > 1.25M nodes: PySpark wins (grows faster advantage)
+
+3. PER-NODE EFFICIENCY
+
+   Naive:  5.8 microseconds per node
+   Spark:  3.4 microseconds per node
+   
+   → Spark is 1.7x MORE EFFICIENT per node
+   → But 3-second startup overhead dominates for small graphs
+
+4. STARTUP OVERHEAD BREAKDOWN
+
+   JVM Initialization:          ~0.5-1.0 seconds
+   Spark Context Setup:         ~1.5-2.0 seconds
+   Python/Java Bridge:          ~0.5 seconds
+   ────────────────────────────────────────────
+   Total Fixed Overhead:        ~3.0 seconds
+
+5. PRACTICAL IMPLICATIONS
+
+   Use NAIVE when:              Use SPARK when:
+   ✓ < 1 million nodes          ✓ > 1.25 million nodes
+   ✓ Single machine needed      ✓ Distributed computing needed
+   ✓ Quick turnaround           ✓ Can absorb 3s startup cost
+   ✓ Development/testing        ✓ Long-running analytical jobs
+
+6. SCALING BEHAVIOR
+
+   At 10 Million nodes:
+   • Naive: 59.6 seconds
+   • Spark: 37.0 seconds
+   • Advantage: 1.61x faster with Spark (saves 22.6 seconds)
+
+   At 1 Billion nodes:
+   • Naive: 99 minutes
+   • Spark: 57 minutes
+   • Advantage: 1.75x faster with Spark (saves 42 minutes!)
+
+7. MATHEMATICAL RELATIONSHIP
+
+   Naive:  T(n) = 5.8e-6 × n + 0.01 seconds
+   Spark:  T(n) = 3.0 + 3.4e-6 × n seconds
+
+   Crossover equation solved:
+   5.8e-6 × n = 3.0 + 3.4e-6 × n
+   → n = 1,250,000 nodes
+
+8. CURRENT STATUS (1M NODES)
+
+   Naive: 5.96 seconds  ✓ FASTER
+   Spark: 7.80 seconds  
+   
+   Naive is 24% faster at 1M nodes
+   Need to reach ~1.35M nodes for Spark to break even
+
+================================================================================

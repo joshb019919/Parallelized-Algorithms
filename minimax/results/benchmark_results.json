@@ -1,0 +1,74 @@
+[
+  {
+    "nodes": 100000,
+    "naive_time": 0.233553,
+    "parallel_time": 7.633942,
+    "naive_result": 0,
+    "parallel_result": 0,
+    "match": true
+  }
+,
+  {
+    "nodes": 200000,
+    "naive_time": 0.488146,
+    "parallel_time": 9.096553,
+    "naive_result": 7,
+    "parallel_result": 7,
+    "match": true
+  }
+,
+  {
+    "nodes": 300000,
+    "naive_time": 0.673500,
+    "parallel_time": 9.041266,
+    "naive_result": 9,
+    "parallel_result": 9,
+    "match": true
+  }
+,
+  {
+    "nodes": 400000,
+    "naive_time": 0.908829,
+    "parallel_time": 9.679756,
+    "naive_result": -22,
+    "parallel_result": -22,
+    "match": true
+  }
+,
+  {
+    "nodes": 500000,
+    "naive_time": 1.115928,
+    "parallel_time": 10.287415,
+    "naive_result": -27,
+    "parallel_result": -27,
+    "match": true
+  }
+,
+  {
+    "nodes": 1000000,
+    "naive_time": 2.257440,
+    "parallel_time": 13.588833,
+    "naive_result": 10,
+    "parallel_result": 10,
+    "match": true
+  }
+,
+  {
+    "nodes": 10000000,
+    "naive_time": 21.600731,
+    "parallel_time": 60.225051,
+    "naive_result": -13,
+    "parallel_result": -13,
+    "match": true
+  }
+,
+  {
+    "nodes": 20000000,
+    "naive_time": 43.451989,
+    "parallel_time": 119.647557,
+    "naive_result": 21,
+    "parallel_result": 21,
+    "match": true
+  }
+
+]
